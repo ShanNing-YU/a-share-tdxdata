@@ -2,7 +2,7 @@
 """客户端入口"""
 from .transport.sync import SyncTransport
 from .commands.auth import build_auth, parse_auth_response
-from .commands.bars import build_code_request
+from .commands.bars import build_bars_req
 
 
 class TdxNovaError(Exception):
@@ -23,8 +23,7 @@ class TdxNovaClient:
         return parse_auth_response(resp)
 
     def request_code(self, code: str) -> bytes:
-        """0c07 数据请求（code 明文）——响应格式明天盘中定稿"""
-        self.transport.send(build_code_request(code))
+        """日线 K 线请求（0c01+新版本位）——响应格式见 commands/bars.py"""
         raw = b""
         try:
             while True:

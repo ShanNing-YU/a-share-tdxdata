@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """GetSecurityQuotes 报价接口 — 旧 pytdx 格式在新服务器原样可用（2026-09-15 实测）
 
+变长整数解码 (get_price) 参考 pytdx (MIT License) rainx/pytdx — https://github.com/rainx/pytdx
+请求/响应框架为 tdxdata 独立实现。
+
 响应(1只,100B): 帧头18B + count(2) + market(1) + code(6) + active1(2)
   + price_base(变长) + last_close_diff + open_diff + high_diff + low_diff (相对base的差分)
   + 时间 + (-price) + vol + cur_vol + amount(u32) + s_vol + b_vol
