@@ -4,7 +4,7 @@
 
 老 pytdx / mootdx / xmtdx 的协议 2026-09-10 起被通达信服务器拒绝（服务端协议改动：版本标识 + 命令族 + zlib 流式压缩）。tdxdata 是逆向新协议后的独立实现。
 
-**A-share (CN) realtime quote client for TDX's 2026-09 protocol. Drop-in replacement path after pytdx stopped working.**
+**A-share (CN) realtime quote client for TDX's 2026-09 protocol.**
 
 ## 快速开始
 
