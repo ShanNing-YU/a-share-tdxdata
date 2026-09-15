@@ -65,7 +65,7 @@ class TdxClient:
             buf += ch
             if got is None:
                 got = time.time()
-                end = min(end, got + 0.15)
+                end = min(end, got + 0.5)  # 首个数据后多等 0.5s 收残余 TCP 段（防半帧错位）
         return buf
 
     def _req(self, payload: bytes, secs: float = 3.0) -> bytes:

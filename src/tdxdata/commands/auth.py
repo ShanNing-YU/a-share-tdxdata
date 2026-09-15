@@ -4,13 +4,16 @@ import struct
 from ..protocol import AUTH_LOAD
 
 
-def build_auth(version_float: float = 7.92) -> bytes:
-    """构造 tdxlevel 认证请求。
+def build_auth() -> bytes:
+    """构造 tdxlevel 认证请求（抓包原样 42B，实测才能过认证）。
 
-    抓包原样: 0c03 1899 0001 2000 2000 db0f 'tdxlevel' 000000 <float> 110000...
-    version_float 为客户端版本号（抓包 0x40f75c29 ≈ 7.918）
+    0c03 1899 0001 2000 2000 db0f 'tdxlevel' 00000000 <float 7.918> 11 00...00 05
+    ⚠️ 注意必须 42B（AUTH_LOAD 曾少 1B 导致服务器不响应）
     """
-    return struct.pack("!I", 0) and AUTH_LOAD  # 先用抓包原样，明天按需参数化
+    return bytes.fromhex(
+        "0c031899000120002000db0f7464786c6576656c"
+        "000000295cf740110000000000000000000000000005"
+    )
 
 def parse_auth_response(buf: bytes) -> dict:
     """解析认证响应（b1cb7400 0c03... 195B）。"""
