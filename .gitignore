@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# 逆向抓包与临时分析产物（不进仓库）
+*.pcapng
+*.etl
+*.bin
+captures/
+
+# 环境
+.env
+.env.*

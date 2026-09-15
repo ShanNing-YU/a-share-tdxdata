@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tdxdata"
+version = "0.1.0"
+description = "TDX (通达信) 2026-09 新版行情协议客户端 — realtime A-share quotes"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "tdxdata contributors" }]
+keywords = ["tdx", "通达信", "a-share", "stock", "quotes", "pytdx"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = []
+
+[project.scripts]
+tdxdata-probe = "tdxdata.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+tdxdata = ["servers.txt"]
