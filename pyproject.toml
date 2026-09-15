@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tdxdata"
-version = "0.1.0"
+version = "0.1.1"
 description = "TDX (通达信) 2026-09 新版行情协议客户端 — realtime A-share quotes"
 readme = "README.md"
 requires-python = ">=3.10"
