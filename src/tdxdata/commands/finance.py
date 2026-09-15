@@ -4,6 +4,8 @@
 请求 21B: 0c1f 1876 0001 0b00 0b00 1000 0100 + market + code6
 响应: 帧头 + count(2) + market(1) + code(6) + 流通股本(f32) + 省份(u16) + 行业(u16)
      + 更新日期(u32 yyyymmdd) + IPO(u32) + 总股本..每股净资产(28×f32)
+单位: 股本=万股(×10000→股); 金额=千元(×1000→元); 股东人数/每股净资产=直接值
+⚠️ pytdx 把金额类按万元×10000（放大10倍，其 docstring 平安总资产 30 万亿即此 bug），本实现已修正
 """
 import struct
 
@@ -13,8 +15,13 @@ FIELDS = ['总股本', '国家股', '发起人法人股', '法人股', 'B股', '
           '固定资产', '无形资产', '股东人数', '流动负债', '长期负债', '资本公积金', '净资产', '主营收入',
           '主营利润', '应收帐款', '营业利润', '投资收益', '经营现金流', '总现金流', '存货', '利润总额',
           '税后利润', '净利润', '未分利润', '每股净资产', '保留']
-# 单位: 股本类 ×10000(手?)实际为股; 金额类 ×10000 元; 每股类直接
-# 兼容 pytdx: liutongguben*10000 等
+# 单位（2026-09-15 实测 600519/601988 对照财报）:
+#   股本类(国家股..职工股) = 万股 → ×10000 得股（liutongguben/zongguben 同）
+#   金额类(总资产..未分利润) = 千元 → ×1000 得元（⚠️ 原照抄 pytdx ×10000 会把金额放大 10 倍，
+#     pytdx 官方 docstring 样例平安总资产 ×10000=30万亿 vs 真实 3.24万亿 即此 bug）
+#   直接值: 股东人数(11) / 每股净资产(28) / 保留(29)
+MONEY_IDX = {7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}
+SHARE_IDX = {1, 2, 3, 4, 5, 6}
 
 def build_finance_req(market: int, code: str) -> bytes:
     return TMPL + bytes([market]) + code.encode()
@@ -40,10 +47,12 @@ def parse_finance(resp: bytes) -> dict:
         if pos + 4 <= len(body):
             v = struct.unpack('<f', body[pos:pos+4])[0]
             pos += 4
-            if i in (11, 28, 29):  # 股东人数/每股净资产直接值
+            if i in (11, 28, 29):  # 股东人数/每股净资产/保留 = 直接值
                 rest[FIELDS[i]] = round(v, 4)
-            else:
-                rest[FIELDS[i]] = round(v * 10000, 2)
+            elif i in SHARE_IDX:   # 股本类: 万股 → 股
+                rest[FIELDS[i]] = round(v * 10000, 0)
+            else:                  # 金额类: 千元 → 元
+                rest[FIELDS[i]] = round(v * 1000, 2)
     return {
         'ok': True, 'code': code, 'market': market,
         'liutongguben': liutong,          # 股
