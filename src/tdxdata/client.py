@@ -34,6 +34,18 @@ def market_of(code: str) -> int:
     return 1 if code.startswith(('6', '9')) else 0
 
 
+def maybe_decompress(resp: bytes) -> bytes:
+    """服务器对大数据量响应返回 zlib 压缩（小数据量明文），统一解压"""
+    import zlib
+    i = resp.find(b'\x78\x9c')
+    if i >= 0:
+        try:
+            return resp[:i] + zlib.decompress(resp[i:])
+        except Exception:
+            pass
+    return resp
+
+
 class TdxClient:
     def __init__(self, host: str = DEFAULT_HOST, port: int = PORT):
         self.host, self.port = host, port
@@ -84,6 +96,7 @@ class TdxClient:
     def bars(self, category: int, code: str, start: int = 0, count: int = 100, market: int = None):
         m = market if market is not None else market_of(code)
         r = self._req(build_bars_req(category, m, code, start, count))
+        r = maybe_decompress(r)
         if len(r) <= 18:
             return []
         return parse_bars_response(r[16:], category)
