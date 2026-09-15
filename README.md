@@ -68,6 +68,7 @@ tdxdata-probe --codes 000001,600519 --host 101.35.121.35
 - 3 个主站 IP 连接即 reset（已从 servers.txt 剔除）
 - 大数据量响应为 zlib 压缩流（小数据量明文），客户端已统一处理（`client.maybe_decompress`）
 - 少数股票 5min 含 13:00 一根 bar（服务器行为，与旧 pytdx 主库一致）
+- 无效代码（不存在的股票代码）返回未定义数据（bars 可能含乱码日期、quotes 可能重定向到其他代码），调用方需保证传入有效代码
 
 ## 协议要点（完整版见 docs/protocol.md）
 

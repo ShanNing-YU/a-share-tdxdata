@@ -67,11 +67,20 @@ def parse_quotes(resp: bytes):
             (amount_raw,) = struct.unpack("<I", b[pos:pos+4]); pos += 4
             s_vol, pos = get_price(b, pos)
             b_vol, pos = get_price(b, pos)
+            # ⚠️ 关键: pytdx 在 b_vol 后还有 reversed_bytes2/3 两个变长字段，
+            # 不跳过会导致 pos 偏移 → 多只错位、单只五档全错（曾漏此 2 字段）
+            _, pos = get_price(b, pos)
+            _, pos = get_price(b, pos)
             bids, asks, bvs, avs = [], [], [], []
             for _ in range(5):
                 bd, pos = get_price(b, pos); aq, pos = get_price(b, pos)
                 bv, pos = get_price(b, pos); av, pos = get_price(b, pos)
                 bids.append(bd); asks.append(aq); bvs.append(bv); avs.append(av)
+            # 每只记录尾部（pytdx 对齐）: rev4(H) + rev5-8(4×变长) + rev9(h)+active2(H)
+            pos += 2
+            for _ in range(4):
+                _, pos = get_price(b, pos)
+            pos += 4
             base = price_base
             out.append({
                 'market': market, 'code': code.decode(errors='ignore'),
@@ -79,7 +88,7 @@ def parse_quotes(resp: bytes):
                 'open': (base+op_diff)/100, 'high': (base+hi_diff)/100,
                 'low': (base+lo_diff)/100,
                 'vol': vol, 'cur_vol': cur_vol, 'amount': amount_raw,
-                'bid': [b/100 for b in bids], 'ask': [a/100 for a in asks],
+                'bid': [(base + b) / 100 for b in bids], 'ask': [(base + a) / 100 for a in asks],
                 'bid_vol': bvs, 'ask_vol': avs,
             })
         if out:
