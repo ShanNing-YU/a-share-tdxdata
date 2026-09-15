@@ -19,15 +19,28 @@ def snap_req(code: str, market: int) -> bytes:
 def parse_snap(resp: bytes) -> dict:
     if len(resp) < 60:
         return {'ok': False, 'raw_len': len(resp)}
+    data = resp
+    compressed = False
+    i789 = resp.find(b'\x78\x9c')
+    if i789 >= 0:
+        try:
+            import zlib
+            data = resp[:i789] + zlib.decompress(resp[i789:])
+            compressed = True
+        except Exception:
+            pass
+    if len(data) < 60:
+        return {'ok': False, 'raw_len': len(resp), 'compressed': compressed}
     prices = []
     i = 50
-    while i + 4 <= len(resp):
-        v = struct.unpack('<f', resp[i:i+4])[0]
+    while i + 4 <= len(data):
+        v = struct.unpack('<f', data[i:i+4])[0]
         if 0.1 < v < 100000:
             prices.append(round(v, 3)); i += 4
         else:
             i += 2
-    return {'ok': True, 'last': prices[-1] if prices else None, 'prices': prices}
+    return {'ok': True, 'last': prices[-1] if prices else None, 'prices': prices,
+            'compressed': compressed, 'raw_len': len(resp)}
 
 class Conn:
     def __init__(self, host):

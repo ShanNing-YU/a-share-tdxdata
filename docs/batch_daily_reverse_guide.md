@@ -25,10 +25,11 @@
    ```
    pktmon start --capture -f C:\Users\YUZQ\Desktop\tdx_dl.etl
    ```
-3. 打开通达信客户端
-4. 等它弹「是否下载今日日线数据」→ **点确定/是**
-5. **不要做其他操作**，等下载完成（进度条走完）
-6. 停止抓包：
+4. 打开通达信客户端
+5. 等它弹「是否下载今日日线数据」→ **点确定/是**，等下载完成
+6. **额外动作（抓盘口/财务指标）**：打开 `000002`（万科A）的**盘口五档 / F10 详情页**，停留 10-15 秒
+7. 不要做其他操作
+8. 停止抓包：
    ```
    pktmon stop
    pktmon etl2pcap C:\Users\YUZQ\Desktop\tdx_dl.etl -o C:\Users\YUZQ\Desktop\tdx_dl.pcapng
