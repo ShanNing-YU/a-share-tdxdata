@@ -22,12 +22,16 @@ def parse_bars_response(body: bytes, category: int):
     out = []
     pre = 0
     for _ in range(ret_count):
-        d = struct.unpack("<I", body[pos:pos+4])[0]; pos += 4
-        if category in (0, 1, 2, 3, 8):
-            d1, t1 = d >> 16, d & 0xffff
-            year, month, day = d1 // 10000, d1 // 100 % 100, d1 % 100
-            hour, minute = t1 // 100, t1 % 100
+        if category < 4 or category in (7, 8):
+            # 分钟线: zipday(u16 高11位年-2004+低11位月日) + tminutes(u16 分钟)
+            zipday, tminutes = struct.unpack("<HH", body[pos:pos+4]); pos += 4
+            year = (zipday >> 11) + 2004
+            month = int((zipday % 2048) / 100)
+            day = (zipday % 2048) % 100
+            hour = int(tminutes / 60)
+            minute = tminutes % 60
         else:
+            d = struct.unpack("<I", body[pos:pos+4])[0]; pos += 4
             year, month, day = d // 10000, d // 100 % 100, d % 100
             hour = minute = 0
         od, pos = get_price(body, pos); cd, pos = get_price(body, pos)
