@@ -104,13 +104,13 @@ class TdxClient:
     # ---- 盘口报价 ----
     def quotes(self, items):
         r = self._req(build_quotes_req(items))
-        return parse_quotes(r)
+        return parse_quotes(maybe_decompress(r))
 
     # ---- 财务 ----
     def finance(self, code: str, market: int = None):
         m = market if market is not None else market_of(code)
         r = self._req(build_finance_req(m, code))
-        return parse_finance(r)
+        return parse_finance(maybe_decompress(r))
 
     def close(self):
         if self.sock:

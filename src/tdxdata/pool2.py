@@ -91,6 +91,56 @@ def worker(host, codes, results, idx):
     results[idx] = mine
     c.close()
 
+
+class Pool:
+    """多主站并发快照池 — 每连接一个服务器，顺序拉取分配到的代码。
+
+    服务器每连接每请求固定 ~3s → 多连接并发摊掉延迟。
+    用法:
+        p = Pool()              # 默认 43 主站并发
+        p.snap('600519')        # 单只（走第一台服务器）
+        rows = p.snap_all(codes)   # 全列表并发，返回 [(code, last, ok)]
+    """
+
+    def __init__(self, n_conn: int = 43):
+        self.n_conn = n_conn
+        self.servers = load_servers()
+        if len(self.servers) < n_conn:
+            self.servers = (self.servers * (n_conn // len(self.servers) + 1))[:n_conn]
+
+    def snap(self, code: str, market: int = None) -> dict:
+        """单只快照（走第一台服务器；失败自动换下一台）"""
+        if market is None:
+            market = 1 if code.startswith(('6', '9')) else 0
+        for host in self.servers[:3]:
+            try:
+                c = Conn(host)
+                r = c.snap(code, market)
+                c.close()
+                if r.get('ok') and r.get('last'):
+                    return r
+            except Exception:
+                continue
+        return {'ok': False, 'code': code}
+
+    def snap_all(self, codes):
+        """并发拉整个代码列表。返回 [(code, last, ok), ...] 保持输入顺序。"""
+        results = {}
+        chunk = len(codes) // self.n_conn + 1
+        threads = []
+        for i in range(self.n_conn):
+            seg = codes[i * chunk:(i + 1) * chunk]
+            if not seg:
+                continue
+            t = threading.Thread(target=worker, args=(self.servers[i], seg, results, i))
+            threads.append(t)
+            t.start()
+        for t in threads:
+            t.join()
+        flat = [v for sub in results.values() for v in sub]
+        by_code = {c: (last, ok) for c, last, ok in flat}
+        return [(c, *by_code.get(c, (None, False))) for c in codes]
+
 if __name__ == '__main__':
     servers = load_servers()
     # 确定存在的代码（深沪白马混合）

@@ -22,11 +22,7 @@ CMD_FILE_REQ = 0x0C04        # 文件下载请求（infoharbor_spec.cfg 等）
 CMD_BARS = 0x0C07            # 数据请求（带明文 code）
 CMD_SNAPSHOT = 0x0000        # 明文批量快照请求（00...c002 + code 列表）
 
-# tdxlevel 认证负载（抓包原样）
-AUTH_LOAD = bytes.fromhex(
-    "0c031899000120002000db0f7464786c6576656c000000295cf74011"
-    "00000000000000000000000005"
-)
+# 认证负载见 commands/auth.py build_auth()（42B 正确版；此处不再存档防漂移）
 
 # 帧头标记（响应）
 FRAME_MARK = b"\xb1\xcb\x74\x00"

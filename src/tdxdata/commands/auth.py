@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 """tdxlevel 认证命令（0c03，抓包格式）"""
 import struct
-from ..protocol import AUTH_LOAD
 
 
 def build_auth() -> bytes:
     """构造 tdxlevel 认证请求（抓包原样 42B，实测才能过认证）。
 
     0c03 1899 0001 2000 2000 db0f 'tdxlevel' 00000000 <float 7.918> 11 00...00 05
-    ⚠️ 注意必须 42B（AUTH_LOAD 曾少 1B 导致服务器不响应）
+    ⚠️ 注意必须 42B（曾少 1B 导致服务器不响应）
     """
     return bytes.fromhex(
         "0c031899000120002000db0f7464786c6576656c"
