@@ -36,8 +36,8 @@ def parse_bars_response(body: bytes, category: int):
             hour = minute = 0
         od, pos = get_price(body, pos); cd, pos = get_price(body, pos)
         hd, pos = get_price(body, pos); ld, pos = get_price(body, pos)
-        (vol_raw,) = struct.unpack("<I", body[pos:pos+4]); pos += 4
-        (amt_raw,) = struct.unpack("<I", body[pos:pos+4]); pos += 4
+        # ⚠️ 2026-09 新协议 vol/amount 是 f32！pytdx 旧格式 u32 会读出垃圾大数（000001 实测 u32=12.28亿 vs f32=75.5万手）
+        vol_raw, amt_raw = struct.unpack("<ff", body[pos:pos+8]); pos += 8
         o = (od + pre) / 1000
         c = (od + pre + cd) / 1000
         h = (od + pre + hd) / 1000

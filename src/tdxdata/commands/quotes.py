@@ -64,7 +64,7 @@ def parse_quotes(resp: bytes):
             cur_vol, pos = get_price(b, pos)
             if pos + 4 > len(b):
                 break
-            (amount_raw,) = struct.unpack("<I", b[pos:pos+4]); pos += 4
+            (amount_raw,) = struct.unpack("<f", b[pos:pos+4]); pos += 4  # 新协议 f32（pytdx 旧 u32 错读放大）
             s_vol, pos = get_price(b, pos)
             b_vol, pos = get_price(b, pos)
             # ⚠️ 关键: pytdx 在 b_vol 后还有 reversed_bytes2/3 两个变长字段，
