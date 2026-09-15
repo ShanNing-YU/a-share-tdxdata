@@ -30,8 +30,9 @@ SNAP_SUFFIX = bytes.fromhex("000000000000000000000000000000000100140000000001000
 
 
 def market_of(code: str) -> int:
-    """0=深市 1=沪市（000001+1=上证指数）"""
-    return 1 if code.startswith(('6', '9')) else 0
+    """0=深市 1=沪市（000001+1=上证指数）
+    ⚠️ 5 开头是沪市基金（510300 沪深300ETF/588000 科创50 等），不能按深市处理"""
+    return 1 if code.startswith(('5', '6', '9')) else 0
 
 
 def maybe_decompress(resp: bytes) -> bytes:

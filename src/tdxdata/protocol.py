@@ -19,7 +19,7 @@ CMD_HEARTBEAT = 0x0C00       # 12B 心跳: 0c00...
 CMD_INIT = 0x0C01            # 74B 加密初始化（会话上下文，用途待定）
 CMD_AUTH = 0x0C03            # tdxlevel 认证
 CMD_FILE_REQ = 0x0C04        # 文件下载请求（infoharbor_spec.cfg 等）
-CMD_BARS = 0x0C07            # 数据请求（带明文 code）
+CMD_BARS = 0x0C07            # 数据请求（带明文 code）— ⚠️ 实际 bars 走 0x010c 命令族，此常量仅为抓包观察存档
 CMD_SNAPSHOT = 0x0000        # 明文批量快照请求（00...c002 + code 列表）
 
 # 认证负载见 commands/auth.py build_auth()（42B 正确版；此处不再存档防漂移）

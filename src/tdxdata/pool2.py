@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""并发池正式版: 46 IP 并发，每连接顺序拉 N 只（3s/只），全市场 ~5.5 分钟"""
+"""并发池: 43 IP 并发，每连接顺序拉 N 只（3s/只），全市场快照 ~12-15 分钟"""
 import socket, time, struct, os, threading, random, sys
 
 PORT = 7709
@@ -82,7 +82,7 @@ def worker(host, codes, results, idx):
     c = Conn(host)
     mine = []
     for code in codes:
-        m = 1 if code.startswith(('6', '9')) else 0
+        m = 1 if code.startswith(('5', '6', '9')) else 0  # 5=沪基金 6=沪A 9=沪B
         try:
             r = c.snap(code, m)
             mine.append((code, r.get('last'), r['ok']))
@@ -111,7 +111,7 @@ class Pool:
     def snap(self, code: str, market: int = None) -> dict:
         """单只快照（走第一台服务器；失败自动换下一台）"""
         if market is None:
-            market = 1 if code.startswith(('6', '9')) else 0
+            market = 1 if code.startswith(('5', '6', '9')) else 0
         for host in self.servers[:3]:
             try:
                 c = Conn(host)
