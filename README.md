@@ -1,5 +1,10 @@
 # tdxdata
 
+[![PyPI version](https://img.shields.io/pypi/v/tdxdata.svg)](https://pypi.org/project/tdxdata/)
+[![Python versions](https://img.shields.io/pypi/pyversions/tdxdata.svg)](https://pypi.org/project/tdxdata/)
+[![License](https://img.shields.io/github/license/ShanNing-YU/a-share-tdxdata.svg)](LICENSE)
+[![PyPI downloads](https://img.shields.io/pypi/dm/tdxdata.svg)](https://pypi.org/project/tdxdata/)
+
 通达信（TDX）新版行情协议 Python 客户端 — 2026-09 协议逆向适配。
 
 老 pytdx / mootdx / xmtdx 的协议 2026-09-10 起被通达信服务器拒绝（服务端协议改动：版本标识 + 命令族 + zlib 流式压缩）。tdxdata 是逆向新协议后的独立实现。
