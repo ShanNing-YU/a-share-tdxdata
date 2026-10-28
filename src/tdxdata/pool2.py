@@ -8,6 +8,8 @@ C03 = bytes.fromhex("0c031899000120002000db0f7464786c6576656c000000295cf74011000
 SN_PREFIX = bytes.fromhex("0c090041030027002700d10f")
 SN_SUFFIX = bytes.fromhex("0000000000000000000000000000000001001400000000010000000000")
 
+from .commands.finance import build_finance_req, parse_finance  # 财务(0c1f) 复用既有解析器
+
 def load_servers():
     p = os.path.join(os.path.dirname(__file__), 'servers.txt')
     with open(p) as f:
@@ -72,6 +74,10 @@ class Conn:
         self.sock.sendall(snap_req(code, market))
         r = self._recv(3.5)
         return parse_snap(r)
+    def finance(self, code, market):
+        """单只财务(0c1f)，复用 commands/finance.py 的构造与解析"""
+        self.sock.sendall(build_finance_req(market, code))
+        return parse_finance(self._recv(3.5))
     def close(self):
         try:
             self.sock.close()
@@ -88,6 +94,21 @@ def worker(host, codes, results, idx):
             mine.append((code, r.get('last'), r['ok']))
         except Exception as e:
             mine.append((code, None, False))
+    results[idx] = mine
+    c.close()
+
+
+def worker_finance(host, codes, results, idx):
+    """单连接顺序拉财务（照 worker 的模式）"""
+    c = Conn(host)
+    mine = []
+    for code in codes:
+        m = 1 if code.startswith(('5', '6', '9')) else 0
+        try:
+            r = c.finance(code, m)
+            mine.append((code, r if isinstance(r, dict) else {'ok': False, 'code': code}))
+        except Exception:
+            mine.append((code, {'ok': False, 'code': code}))
     results[idx] = mine
     c.close()
 
@@ -140,6 +161,45 @@ class Pool:
         flat = [v for sub in results.values() for v in sub]
         by_code = {c: (last, ok) for c, last, ok in flat}
         return [(c, *by_code.get(c, (None, False))) for c in codes]
+
+    def finance(self, code: str, market: int = None) -> dict:
+        """单只财务（走第一台服务器；失败自动换下一台）"""
+        if market is None:
+            market = 1 if code.startswith(('5', '6', '9')) else 0
+        for host in self.servers[:3]:
+            try:
+                c = Conn(host)
+                r = c.finance(code, market)
+                c.close()
+                if isinstance(r, dict) and r.get('ok'):
+                    return r
+            except Exception:
+                continue
+        return {'ok': False, 'code': code}
+
+    def finance_all(self, codes):
+        """并发拉财务。返回与输入等长、同顺序的 [row, ...]（失败行 ok=False）。
+        服务器每请求固定 ~3-4s → 多连接并发摊掉延迟（照 snap_all 的模式）。
+        用法: rows = Pool(n_conn=10).finance_all(codes)
+        """
+        results = {}
+        chunk = len(codes) // self.n_conn + 1
+        threads = []
+        for i in range(self.n_conn):
+            seg = codes[i * chunk:(i + 1) * chunk]
+            if not seg:
+                continue
+            t = threading.Thread(target=worker_finance, args=(self.servers[i], seg, results, i))
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
+        by_code = {}
+        for sub in results.values():
+            for code, row in sub:
+                by_code[code] = row
+        return [by_code.get(c, {'ok': False, 'code': c}) for c in codes]
+
 
 if __name__ == '__main__':
     servers = load_servers()
