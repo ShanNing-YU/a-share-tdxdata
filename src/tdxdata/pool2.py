@@ -85,7 +85,12 @@ class Conn:
             pass
 
 def worker(host, codes, results, idx):
-    c = Conn(host)
+    """单连接顺序拉快照。建连失败时整块按失败回填，不炸线程（同 worker_finance）。"""
+    try:
+        c = Conn(host)
+    except Exception:
+        results[idx] = [(code, None, False) for code in codes]
+        return
     mine = []
     for code in codes:
         m = 1 if code.startswith(('5', '6', '9')) else 0  # 5=沪基金 6=沪A 9=沪B
@@ -99,8 +104,16 @@ def worker(host, codes, results, idx):
 
 
 def worker_finance(host, codes, results, idx):
-    """单连接顺序拉财务（照 worker 的模式）"""
-    c = Conn(host)
+    """单连接顺序拉财务（照 worker 的模式）。
+
+    建连失败时**不炸线程**：整块按失败回填，避免一条线程崩掉导致
+    它分到的所有代码静默丢失（2026-10-28 实测：400 只只回 66 只即此因）。
+    """
+    try:
+        c = Conn(host)
+    except Exception:
+        results[idx] = [(code, {'ok': False, 'code': code}) for code in codes]
+        return
     mine = []
     for code in codes:
         m = 1 if code.startswith(('5', '6', '9')) else 0
