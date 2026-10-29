@@ -119,6 +119,9 @@ def worker_finance(host, codes, results, idx):
         m = 1 if code.startswith(('5', '6', '9')) else 0
         try:
             r = c.finance(code, m)
+            # 空壳行的 code 字段是空的（解析自响应内容），补回请求的代码供调用方对号
+            if not r.get('ok'):
+                r['code'] = code
             mine.append((code, r if isinstance(r, dict) else {'ok': False, 'code': code}))
         except Exception:
             mine.append((code, {'ok': False, 'code': code}))
