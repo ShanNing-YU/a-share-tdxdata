@@ -54,7 +54,9 @@ def parse_finance(resp: bytes) -> dict:
             else:                  # 金额类: 千元 → 元
                 rest[FIELDS[i]] = round(v * 1000, 2)
     return {
-        'ok': True, 'code': code, 'market': market,
+        # 退市/无效票会返回"全零空壳"（code 全是 \x00、ipo_date=0）：
+        # 只看帧长度会误判成功，调用方拿到一堆 0 却以为有数据 → 必须按内容判 ok
+        'ok': bool(code.strip('\x00')) and ipo > 0, 'code': code, 'market': market,
         'liutongguben': liutong,          # 股
         'zongguben': zongguben,           # 股
         'province': prov, 'industry': ind,

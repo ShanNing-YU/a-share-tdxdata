@@ -11,5 +11,5 @@
 from .client import TdxClient, market_of, parse_snap
 from .pool2 import Pool  # 0.2.0: 顶层导出并发池（含 finance_all），否则 import tdxdata; tdxdata.Pool 不可见
 
-__version__ = "0.2.1"  # ponytail: 与 pyproject.toml 手工同步；tests 里有漂移断言兜底
+__version__ = "0.2.2"  # ponytail: 与 pyproject.toml 手工同步；tests 里有漂移断言兜底
 __all__ = ["TdxClient", "Pool", "market_of", "parse_snap", "__version__"]
