@@ -23,7 +23,7 @@ from tdxdata import TdxClient
 c = TdxClient()              # 默认连 101.35.121.35（43 主站之一，见 servers.txt）
 c.connect()                  # 0c02 init + 0c03 tdxlevel 认证
 c.snap('600519')             # 分时快照: 最新价 + 当日分时点
-c.bars(9, '000059', 0, 100)  # 历史K线: 9=日线 0=5min 8=1min 6=周 7=月
+c.bars(9, '000059', 0, 100)  # 历史K线: 9=日线 0=5min 1=15min 3=60min 5=周 6=月 7/8=1min
 c.quotes([(0, '000059')])    # 盘口报价: 现价/昨收/高低/量/额/五档
 c.finance('000059')          # 财务: 流通/总股本/净利润/每股净资产
 c.close()

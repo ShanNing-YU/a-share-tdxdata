@@ -5,7 +5,7 @@
     c = TdxClient('101.35.121.35')
     c.connect()                       # 0c02 init + 0c03 tdxlevel（无需 0c01）
     c.snap('600519')                  # 分时快照（最新价 + 32-51 点当日分时）
-    c.bars(9, '000059', 0, 10)        # 历史K线（9=日线 0=5min 3=60min 6=周 7=月 8=1min）
+    c.bars(9, '000059', 0, 10)        # 历史K线（9=日线 0=5min 3=60min 5=周 6=月 7/8=1min，4=日线变体）
     c.quotes([(0, '000059')])         # 盘口报价（现价/昨收/高低/量/额/五档）
     c.finance(0, '000059')            # 财务（流通股本/总股本/净利润/每股净资产）
     c.close()
@@ -30,9 +30,32 @@ SNAP_SUFFIX = bytes.fromhex("000000000000000000000000000000000100140000000001000
 
 
 def market_of(code: str) -> int:
-    """0=深市 1=沪市（000001+1=上证指数）
-    ⚠️ 5 开头是沪市基金（510300 沪深300ETF/588000 科创50 等），不能按深市处理"""
-    return 1 if code.startswith(('5', '6', '9')) else 0
+    """0=深市 1=沪市 2=京市/北交所（2026-11-06 实测: 北交所须 market=2，
+    0/1 服务器回 ret_count=0 空帧）
+    - 京市: 920xxx 股票（北交所 2025 年起统一 920 号段，存量老代码 83/87/43
+      已停用、m2 同样回空）、899xxx 指数（899050 北证50）、82xxxx（实测 821001
+      有数据，解析自洽）
+    - 沪市: 5/6 开头股票基金、88 板块指数、9 开头（999 上证指数别名/900 B股）
+    ⚠️ 000001 双义: market=1 是上证指数，market=0 是平安银行"""
+    if code.startswith(('82', '92', '899')):
+        return 2
+    if code.startswith(('5', '6', '88', '9')):
+        return 1
+    return 0
+
+
+def is_index_code(market: int, code: str) -> bool:
+    """指数代码判定（决定 K线记录是否带涨跌家数 4B 尾部）:
+    沪市 000xxx 指数系列（000001 上证指数/000300 沪深300/000905 中证500）、
+    88xxxx 板块指数全系（880/881/885/886 段）、999xxx；深市 399xxx
+    （399001 深证成指/399006 创业板指）；京市 899xxx（899050 北证50，
+    与沪指同款 12B 尾部布局，东货行情逐字段验证）。
+    ⚠️ 000001 双义: market=1 是上证指数（指数布局），market=0 是平安银行（个股布局）"""
+    if market == 1:
+        return code.startswith(('000', '88', '999'))
+    if market == 2:
+        return code.startswith('899')
+    return code.startswith('399')
 
 
 def maybe_decompress(resp: bytes) -> bytes:
@@ -48,18 +71,32 @@ def maybe_decompress(resp: bytes) -> bytes:
 
 
 class TdxClient:
-    def __init__(self, host: str = DEFAULT_HOST, port: int = PORT):
-        self.host, self.port = host, port
+    def __init__(self, host: str = DEFAULT_HOST, port: int = PORT, timeout: float = 4.0):
+        self.host, self.port, self.timeout = host, port, timeout
         self.sock = None
+        self._eof = False
 
     def connect(self):
+        """建立连接并完成 0c02/0c03 认证（幂等: 旧连接先关）。
+        实测认证回包 ~70ms 单包收完，静默窗口 0.8s 足够，全程 ~1.3s"""
+        self.close()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(4)
+        self.sock.settimeout(self.timeout)
         self.sock.connect((self.host, self.port))
-        self._send_wait(C02)
-        self._send_wait(build_auth())
+        self._eof = False
+        self._send_wait(C02, 0.8)
+        self._send_wait(build_auth(), 0.8)
 
-    def _send_wait(self, payload: bytes, secs: float = 1.2):
+    def close(self):
+        """关闭连接；之后再调用 bars/snap 等会自动重连"""
+        if self.sock:
+            try:
+                self.sock.close()
+            except Exception:
+                pass
+        self.sock = None
+
+    def _send_wait(self, payload: bytes, secs: float = 0.8):
         self.sock.sendall(payload)
         time.sleep(0.08)
         self._recv(secs)
@@ -69,11 +106,16 @@ class TdxClient:
         end = time.time() + secs
         got = None
         while time.time() < end:
+            # 每次 recv 的阻塞时长对齐静默窗口——旧实现固定 4s socket 超时,
+            # 回包收完后最后一只 recv 干等满 4s,connect 因此慢 ~7s
+            self.sock.settimeout(max(0.02, end - time.time()))
             try:
                 ch = self.sock.recv(65536)
             except socket.timeout:
                 break
             if not ch:
+                self._eof = True   # 服务器已断连(空闲超时/网络断开)
+                self.close()
                 break
             buf += ch
             if got is None:
@@ -82,8 +124,25 @@ class TdxClient:
         return buf
 
     def _req(self, payload: bytes, secs: float = 3.0) -> bytes:
-        self.sock.sendall(payload)
-        return self._recv(secs)
+        """发送并接收响应；连接被服务器断开（空闲超时/网络抖动）时自动重连重试一次"""
+        err = None
+        for _ in (1, 2):
+            if self.sock is None:
+                self.connect()
+            try:
+                self.sock.settimeout(self.timeout)
+                self.sock.sendall(payload)
+                r = self._recv(secs)
+            except OSError as e:    # 断管/被重置/发送超时: 连接已死
+                err, r = e, b''
+            else:
+                err = None
+            if err is None and (r or not self._eof):
+                return r            # 拿到数据；或连接健在只是暂时无包
+            self.close()            # 死连接: 重建后再试一次
+        if err is not None:
+            raise ConnectionError(f'{self.host}:{self.port} 请求失败(已自动重试一次): {err}') from err
+        return r
 
     # ---- 分时快照 ----
     def snap(self, code: str, market: int = None):
@@ -100,7 +159,7 @@ class TdxClient:
         r = maybe_decompress(r)
         if len(r) <= 18:
             return []
-        return parse_bars_response(r[16:], category)
+        return parse_bars_response(r[16:], category, is_index=is_index_code(m, code))
 
     # ---- 盘口报价 ----
     def quotes(self, items):
@@ -112,14 +171,6 @@ class TdxClient:
         m = market if market is not None else market_of(code)
         r = self._req(build_finance_req(m, code))
         return parse_finance(maybe_decompress(r))
-
-    def close(self):
-        if self.sock:
-            try:
-                self.sock.close()
-            except Exception:
-                pass
-
 
 def parse_snap(resp: bytes) -> dict:
     import struct, zlib
