@@ -3,6 +3,16 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 > 0.2.0 之前未系统记录变更历史，本文件自 0.2.0 起维护。
 
+## [0.2.4] — 2026-11-10
+
+### 变更
+
+- **PyPI 页面修复**：0.2.3 上传时 README 未进入 PyPI 页（`long_description` 为空，页面只剩一行简介），
+  且缺失全部仓库链接。本版补上 README 渲染 + GitHub 仓库/Issue/Changelog 链接（`[project.urls]`）。
+- **可发现性**：keywords 增补中文检索词（通达信/tongdaxin/A股/行情等），
+  classifiers 补 `Development Status :: 4 - Beta`、`Intended Audience :: Financial and Insurance Industry`。
+  纯元数据版本，无代码变更。
+
 ## [0.2.3] — 2026-10-28
 
 ### 修复

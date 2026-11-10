@@ -4,20 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tdxdata"
-version = "0.2.3"
+version = "0.2.4"
 description = "TDX (通达信) 2026-09 新版行情协议客户端 — realtime A-share quotes"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [{ name = "tdxdata contributors" }]
-keywords = ["tdx", "通达信", "a-share", "stock", "quotes", "pytdx"]
+keywords = ["tdx", "通达信", "tongdaxin", "a-share", "A股", "行情", "stock", "quotes", "market-data", "quant", "pytdx"]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Office/Business :: Financial :: Investment",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/ShanNing-YU/a-share-tdxdata"
+Repository = "https://github.com/ShanNing-YU/a-share-tdxdata"
+Issues = "https://github.com/ShanNing-YU/a-share-tdxdata/issues"
+Changelog = "https://github.com/ShanNing-YU/a-share-tdxdata/blob/main/CHANGELOG.md"
 
 [project.scripts]
 tdxdata-probe = "tdxdata.cli:main"
