@@ -7,8 +7,8 @@
 
 ### 变更
 
-- **PyPI 页面修复**：0.2.3 上传时 README 未进入 PyPI 页（`long_description` 为空，页面只剩一行简介），
-  且缺失全部仓库链接。本版补上 README 渲染 + GitHub 仓库/Issue/Changelog 链接（`[project.urls]`）。
+- **PyPI 仓库回链**：0.2.3 的 PyPI 页缺失 GitHub 仓库/Issue/Changelog 链接（`project_urls` 未配置），
+  本版补上（`[project.urls]`）。README 本身自始正常渲染，本版未改动其内容。
 - **可发现性**：keywords 增补中文检索词（通达信/tongdaxin/A股/行情等），
   classifiers 补 `Development Status :: 4 - Beta`、`Intended Audience :: Financial and Insurance Industry`。
   纯元数据版本，无代码变更。
