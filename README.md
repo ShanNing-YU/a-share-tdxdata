@@ -14,8 +14,10 @@
 ## 快速开始
 
 ```bash
-pip install -e .
+pip install tdxdata
 ```
+
+开发者从源码安装：克隆本仓库后 `pip install -e .`。
 
 ```python
 from tdxdata import TdxClient
