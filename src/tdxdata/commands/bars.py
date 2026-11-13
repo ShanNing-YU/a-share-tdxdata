@@ -5,7 +5,10 @@
 关键: 老格式请求需把版本标识 0x01016408(字节 08 64 01 01) 换成 0x01007b18(字节 18 7b 00 01)
 解码逻辑参考 pytdx (MIT) rainx/pytdx — get_datetime/get_price/差分价格；请求构造 tdxdata 独立实现。
 
-category: 0=5min 1=15min 2=30min 3=60min 4=日线(后复权) 5=? 6=周 7=月 8=1min 9=日线 10=季 11=年
+category: 0=5min 1=15min 2=30min 3=60min 4=日线 5=? 6=周 7=月 8=1min 9=日线 10=季 11=年
+# ⚠️ 2026-11-13 实测：category 4 原注释标「后复权」有误 —— 其响应与 category 9 **逐位相同**
+#    （001225 除权日前后历史价均为不复权原始价）。服务器**不提供复权价**，复权=客户端本地算；
+#    本库的复权见 tdxdata/adjust.py（仿射口径）。
 """
 import struct
 

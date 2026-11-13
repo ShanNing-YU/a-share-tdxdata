@@ -20,6 +20,8 @@ from .commands.auth import build_auth
 from .commands.bars import build_bars_req, parse_bars_response
 from .commands.finance import build_finance_req, parse_finance
 from .commands.quotes import build_quotes_req, parse_quotes
+from .commands.xdxr import build_xdxr_req, parse_xdxr, xdxr_of
+from .frame import TYPE_GBBQ, split_response
 
 DEFAULT_HOST = '101.35.121.35'
 PORT = 7709
@@ -112,6 +114,40 @@ class TdxClient:
         m = market if market is not None else market_of(code)
         r = self._req(build_finance_req(m, code))
         return parse_finance(maybe_decompress(r))
+
+    # ---- 除权除息（股本变迁）----
+    def xdxr(self, code: str, market: int = None, category: int = 1):
+        """除权除息事件（Type=0x000f，2026-11-13 实测可用，**无需 0c01 身份**）
+
+        :param category: 1=除权除息（默认，复权只由它决定）；None=全部类别
+        :return: [{'date','code','market','category','category_name',
+                   'fenhong','peigujia','songzhuangu','peigu',...}] 按日期升序
+        """
+        m = market if market is not None else market_of(code)
+        r = self._req(build_xdxr_req(m, code))
+        typ, body = split_response(r)
+        if typ != TYPE_GBBQ:                     # 非标准帧 → 退回旧式解析（剥帧头+解压）
+            body = maybe_decompress(r)
+            if len(body) > 16:
+                body = body[16:]
+        if category is None:
+            return sorted(parse_xdxr(body), key=lambda e: e['date'])
+        return xdxr_of(body, category)
+
+    def bars_adjusted(self, code: str, category: int = 9, count: int = 100,
+                      adjust: str = 'qfq', market: int = None, events=None):
+        """K 线 + 复权（仿射口径，与通达信桌面端对齐）
+
+        事件来源：默认走 `self.xdxr(code)`（协议）；也可传 `events`（来自 `gbbq.events_of`）
+        以省一次请求 / 复用整表。成交量额不复权。
+        """
+        from .adjust import adjust_bars
+        bars = self.bars(category, code, 0, count, market)
+        if adjust == 'none':
+            return bars
+        if events is None:
+            events = self.xdxr(code, market)
+        return adjust_bars(bars, events, adjust)
 
     def close(self):
         if self.sock:
