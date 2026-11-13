@@ -60,8 +60,46 @@ def test_selection_helpers():
     assert set(m) == {'A', 'B'} and [r['date'] for r in m['A']] == [20240101, 20250101]
 
 
+def test_bad_input_raises_valueerror():
+    """空/过短数据要给可读的 ValueError，不能抛裸 struct.error（公开包的健壮性要求）"""
+    from tdxdata.gbbq import decrypt_records
+    for bad in (b'', b'\x00', b'\x00\x00\x00'):
+        try:
+            decrypt_records(bad)
+        except ValueError as e:
+            assert 'gbbq' in str(e)
+        except Exception as e:                     # noqa: BLE001
+            raise AssertionError(f'{len(bad)} 字节输入应抛 ValueError，实际 {type(e).__name__}: {e}')
+        else:
+            raise AssertionError(f'{len(bad)} 字节输入应抛 ValueError')
+
+
+def test_truncated_and_cache(tmp=None):
+    """截断文件只解出实际条数；缓存命中结果一致；缓存损坏时回退完整解密"""
+    import struct
+    import tempfile
+    from pathlib import Path
+    from tdxdata.gbbq import read_gbbq
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / 'trunc'
+        p.write_bytes(struct.pack('<I', 100) + b'\x00' * 58)      # 声明 100 条，实际 2 条
+        r1 = read_gbbq(p, cache_dir=td, use_cache=False)
+        assert len(r1) == 2, len(r1)
+        r2 = read_gbbq(p, cache_dir=td)                           # 写缓存
+        assert len(r2) == len(r1)
+        r3 = read_gbbq(p, cache_dir=td)                           # 命中缓存
+        assert len(r3) == len(r2)
+        # 把缓存写坏 → 必须回退完整解密而不是崩
+        for cf in Path(td).glob('gbbq_*.bin'):
+            cf.write_bytes(b'\x01\x02')
+        r4 = read_gbbq(p, cache_dir=td)
+        assert len(r4) == len(r1), f'缓存损坏后应回退，得到 {len(r4)}'
+
+
 if __name__ == '__main__':
     test_url_and_size()
     test_decrypt_record_fixtures()
     test_selection_helpers()
+    test_bad_input_raises_valueerror()
+    test_truncated_and_cache()
     print('test_gbbq: 全部通过 ✅')

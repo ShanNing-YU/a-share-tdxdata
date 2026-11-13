@@ -14,9 +14,11 @@
   解密后 = market(1) + code(7 补 0) + date(u32 YYYYMMDD) + category(1) + 4 × float32。
 - 密钥表见 `gbbq_keys.py`（源自 pytdx，MIT）。
 
-实测对比（2026-11-13）：HTTP 版 207,850 条 / 7,417 只，客户端本地版 194,553 条 / 6,342 只
-→ **本地版是 HTTP 版的严格子集**（少 13,297 条退市/老股票），两者共同股票的事件逐条一致。
+实测对比（2026-11-13）：HTTP 版 **207,882 条 / 7,417 只**，客户端本地版 194,553 条 / 6,342 只
+→ **本地版是 HTTP 版的严格子集**（少约 1.3 万条，多为退市/老股票），两者共有股票的事件逐条一致。
+（官方数据站每日滚动更新，条数会变；客户端本地版只在客户端运行时更新，因此差值会浮动。）
 """
+import hashlib
 import io
 import struct
 import time
@@ -62,7 +64,12 @@ def decrypt_record(rec: bytes) -> bytes:
 
 
 def decrypt_records(raw: bytes) -> list:
-    """解密整个 gbbq 文件 → 记录列表（dict，字段与 xdxr 一致）"""
+    """解密整个 gbbq 文件 → 记录列表（dict，字段与 xdxr 一致）
+
+    文件损坏/为空时抛 `ValueError`（不是裸 struct.error），便于调用方识别。
+    """
+    if len(raw) < 4:
+        raise ValueError(f'gbbq 数据过短（{len(raw)} 字节，至少需要 4 字节的记录数）——不是有效的 gbbq')
     count = struct.unpack_from('<I', raw, 0)[0]
     body = raw[4:]
     n = min(count, len(body) // RECORD_SIZE)
@@ -124,10 +131,14 @@ def read_gbbq(path=None, url=GBBQ_URL, cache_dir=None, use_cache=True, verbose=F
         tag = Path(path).name
     if use_cache:
         cache_dir = Path(cache_dir or Path.home() / '.cache' / 'tdxdata')
-        key = f'gbbq_{tag}_{len(data):x}.bin'
+        # 缓存键用源文件 md5——只按长度会撞（不同版本 gbbq 长度可能相同 → 读到过期数据）
+        key = f'gbbq_{tag}_{hashlib.md5(data).hexdigest()[:12]}.bin'
         cf = cache_dir / key
         if cf.exists():
-            return _load_cache(cf)
+            try:
+                return _load_cache(cf)
+            except Exception:
+                pass          # 缓存损坏 → 忽略，走完整解密
         recs = decrypt_records(data)
         try:
             cache_dir.mkdir(parents=True, exist_ok=True)
@@ -138,10 +149,13 @@ def read_gbbq(path=None, url=GBBQ_URL, cache_dir=None, use_cache=True, verbose=F
     return decrypt_records(data)
 
 
-# ---------------------------------------------------------------- 缓存（24B/条，纯 stdlib）
+# ---------------------------------------------------------------- 缓存（魔数 + 24B/条，纯 stdlib）
+
+CACHE_MAGIC = b'TXG1'
+
 
 def _save_cache(cf: Path, recs: list):
-    buf = bytearray()
+    buf = bytearray(CACHE_MAGIC)
     for r in recs:
         code = r['code'].encode()[:7].ljust(7, b'\x00')
         f = r['raw'] or (r['fenhong'], r['peigujia'], r['songzhuangu'], r['peigu'])
@@ -151,7 +165,14 @@ def _save_cache(cf: Path, recs: list):
 
 
 def _load_cache(cf: Path) -> list:
+    """读缓存；格式不符/被截断/损坏 → 抛 ValueError（调用方回退完整解密，不静默给空数据）"""
     raw = cf.read_bytes()
+    if not raw.startswith(CACHE_MAGIC):
+        raise ValueError('缓存文件魔数不符')
+    body = raw[len(CACHE_MAGIC):]
+    if not body or len(body) % 24:
+        raise ValueError(f'缓存文件长度异常（{len(body)} 字节，应为 24 的倍数）')
+    raw = body
     out = []
     for i in range(len(raw) // 24):
         market, code_b, date, cat, f1, f2, f3, f4 = struct.unpack_from('<B7sIBffff', raw, i * 24)
