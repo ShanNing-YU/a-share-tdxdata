@@ -28,7 +28,7 @@ from .gbbq import (GBBQ_URL, decrypt_record, decrypt_records,  # noqa: F401
                    download_gbbq, events_of, read_gbbq, to_map)
 from .pool2 import Pool  # 0.2.0: 顶层导出并发池（含 finance_all），否则 import tdxdata; tdxdata.Pool 不可见
 
-__version__ = "0.2.6"  # ponytail: 与 pyproject.toml 手工同步；tests 里有漂移断言兜底
+__version__ = "0.2.7"  # ponytail: 与 pyproject.toml 手工同步；tests 里有漂移断言兜底
 __all__ = ["TdxClient", "Pool", "market_of", "parse_snap", "__version__",
            # 权息 / 复权（2026-11-13 新增）
            "GBBQ_URL", "download_gbbq", "read_gbbq", "decrypt_record", "decrypt_records",

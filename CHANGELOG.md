@@ -3,6 +3,14 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 > 0.2.0 之前未系统记录变更历史，本文件自 0.2.0 起维护。
 
+## [0.2.7] — 2026-11-13
+
+### 文档
+
+- README 补充**权息与复权用法**（`xdxr` / `bars_adjusted` / `read_gbbq` / `events_of`）
+  与新增 CLI `tdxdata-qx`（`xdxr` / `gbbq` / `adjust`）示例 —— 0.2.6 的能力此前只写在
+  CHANGELOG 里，PyPI 包页（=README）看不出用法。纯文档修正，无代码变更。
+
 ## [0.2.6] — 2026-11-13
 
 ### 新增

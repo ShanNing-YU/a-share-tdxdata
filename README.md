@@ -49,11 +49,30 @@ p.snap('000001', market=1)       # 上证指数（沪 market=1）
 p.snap('688981', market=1)       # 中芯国际（科创板）
 ```
 
-CLI 连通性自检：
+权息（除权除息）与复权 —— 两条通道都**不需要通达信客户端**：
+
+```python
+from tdxdata import TdxClient, read_gbbq, events_of
+
+c = TdxClient('101.33.225.16'); c.connect()
+c.xdxr('600519')                                     # 协议查除权除息：分红/送转/配股事件
+c.bars_adjusted('600519', count=20, adjust='qfq')     # 前复权日线（adjust 也可 'hfq'）
+recs = read_gbbq()                                   # HTTP 拉整表权息表（20.8 万条 / 7417 只）
+events_of(recs, '600519')                            # 该股全部除权除息事件
+c.close()
+```
+
+复权为**仿射口径**（复权价 = A × 原始价 + B），与通达信桌面端对齐；成交量 / 成交额不复权。
+
+CLI：
 
 ```bash
-tdxdata-probe                        # 探测 600519 的 snap/bars/quotes/finance
+tdxdata-probe                        # 连通性自检（snap/bars/quotes/finance）
 tdxdata-probe --codes 000001,600519 --host 101.35.121.35
+
+tdxdata-qx xdxr 001225               # 按个股查除权除息（协议，免客户端）
+tdxdata-qx gbbq --code 600519        # 下载整表权息表 + 列出该股事件（HTTP，免客户端）
+tdxdata-qx adjust 600519 -n 20       # 近 20 根日线：原始 / 前复权 / 后复权对照
 ```
 
 ## 功能
