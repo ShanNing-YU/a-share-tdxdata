@@ -19,8 +19,6 @@ def snap_req(code: str, market: int) -> bytes:
     return SN_PREFIX + bytes([market, 0]) + code.encode() + SN_SUFFIX
 
 def parse_snap(resp: bytes) -> dict:
-    if len(resp) < 60:
-        return {'ok': False, 'raw_len': len(resp)}
     data = resp
     compressed = False
     i789 = resp.find(b'\x78\x9c')

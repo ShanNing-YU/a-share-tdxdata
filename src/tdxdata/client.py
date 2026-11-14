@@ -5,7 +5,7 @@
     c = TdxClient('101.35.121.35')
     c.connect()                       # 0c02 init + 0c03 tdxlevel（无需 0c01）
     c.snap('600519')                  # 分时快照（最新价 + 32-51 点当日分时）
-    c.bars(9, '000059', 0, 10)        # 历史K线（9=日线 0=5min 3=60min 6=周 7=月 8=1min）
+    c.bars(9, '000059', 0, 10)        # 历史K线（9=日线 0=5min 3=60min 5=周 6=月 8=1min）
     c.quotes([(0, '000059')])         # 盘口报价（现价/昨收/高低/量/额/五档）
     c.finance(0, '000059')            # 财务（流通股本/总股本/净利润/每股净资产）
     c.close()
@@ -158,8 +158,6 @@ class TdxClient:
 
 def parse_snap(resp: bytes) -> dict:
     import struct, zlib
-    if len(resp) < 60:
-        return {'ok': False, 'raw_len': len(resp)}
     data = resp
     compressed = False
     i789 = resp.find(b'\x78\x9c')
