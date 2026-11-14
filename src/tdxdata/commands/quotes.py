@@ -46,7 +46,7 @@ def parse_quotes(resp: bytes):
         if len(b) < 12:
             continue
         (num_stock,) = struct.unpack("<H", b[0:2])
-        if num_stock not in (1, 2, 5):
+        if not 1 <= num_stock <= 80:      # 批量子集: 服务器按请求只数返回 1..N，不能白名单
             continue
         pos = 2
         for _ in range(num_stock):
