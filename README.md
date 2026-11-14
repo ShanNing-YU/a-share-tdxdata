@@ -14,8 +14,13 @@
 ## 快速开始
 
 ```bash
-pip install tdxdata
+pip install -U tdxdata
 ```
+
+> **建议始终用最新版**：本包仍在快速迭代（0.2.5 → 0.2.12 之间修了多处正确性与健壮性问题）。
+> 若在 `requirements.txt` 里钉死旧版本（如 `tdxdata==0.2.6`）会拿不到后续修复；
+> 需要锁版本时，**锁最新发布的那个**。版本历史见
+> [CHANGELOG.md](https://github.com/ShanNing-YU/a-share-tdxdata/blob/main/CHANGELOG.md)。
 
 开发者从源码安装：克隆本仓库后 `pip install -e .`。
 
