@@ -59,8 +59,30 @@ def test_parse_edge_cases():
     assert xdxr_of(b'\x00' * 20, 1) == []
 
 
+# 301233 2026-11-12 category=5（股本变化）实录记录 —— 锁死「股本 = 4 × float32（万股）」解码
+# 早期版本误按 uint32+自研 volume 解码 → 股本恒为 0.0（0.2.6~0.2.9 的 bug）
+SHARES_FIXTURE = '0033303132333300f828350105d21976457145e045d21976458ffee145'
+
+
+def test_shares_field_float32():
+    import struct
+    rec = bytes.fromhex(SHARES_FIXTURE)
+    body = b'\x00' * 9 + struct.pack('<H', 1) + rec
+    r = parse_xdxr(body)[0]
+    assert r['code'] == '301233' and r['date'] == 20261112
+    assert r['category'] == 5 and r['category_name'] == '股本变化'
+    shares = r['shares']
+    assert shares is not None, '股本类记录必须给出 shares'
+    # 万股：前流通 / 前总 / 后流通 / 后总
+    assert abs(shares[0] - 3937.61) < 0.01, shares
+    assert abs(shares[1] - 7176.68) < 0.01, shares
+    assert abs(shares[3] - 7231.82) < 0.01, shares
+    assert all(v > 0 for v in shares), f'不能是 0（旧 bug 症状）: {shares}'
+
+
 if __name__ == '__main__':
     test_build_req_shape()
     test_parse_from_fixture()
     test_parse_edge_cases()
+    test_shares_field_float32()
     print('test_xdxr: 全部通过 ✅')

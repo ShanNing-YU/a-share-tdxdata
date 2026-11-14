@@ -196,6 +196,16 @@ try:
     manual = adjust_prices([b['close'] for b in bars],
                            [int(b['datetime'][:10].replace('-', '')) for b in bars], ev, 'qfq')
     check('bars_adjusted == 手工 adjust_prices', [b['close'] for b in adj] == manual)
+    # 股本类记录（category≠1）的字段必须非零，且与实时 finance 量纲一致（旧 bug：恒为 0）
+    ev_c5 = [e for e in c.xdxr('301233', 0, category=None) if e['category'] == 5 and e['shares']]
+    f = c.finance('301233')
+    if ev_c5 and f.get('liutongguben'):
+        last = ev_c5[-1]['shares']
+        check('股本类 records 非零（旧 bug 症状是 0.0）', all(v > 0 for v in last), last)
+        check('股本量纲与 finance 一致（×10000 ≈ 流通股）',
+              abs(last[0] * 10000 - f['liutongguben']) < max(1, f['liutongguben'] * 1e-4),
+              f'gbbq×1e4={last[0] * 10000:,.0f} vs finance={f["liutongguben"]:,.0f}')
+
     raw_bars = c.bars(9, '001225', 0, 10, 0)
     check('bars_adjusted 成交量/时间与原始一致（只有价被复权）',
           [b['vol'] for b in adj] == [b['vol'] for b in raw_bars]

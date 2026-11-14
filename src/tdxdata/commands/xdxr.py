@@ -7,7 +7,7 @@
   - category == 1（除权除息）: 4 × float32 LE = 分红(每10股派n元) / 配股价 / 送转(每10股) / 配股(每10股)
   - category 11/12（缩股）: 第 3 个 float32 为缩股比例
   - category 13/14（送权证）: 第 1、3 个 float32 有效
-  - 其他: 4 × uint32 股本（万股，通达信自研 volume 编码）
+  - 其他（股本变化/增发等）: 4 × float32 = 股本（万股）——前流通/前总/后流通/后总
 
 与客户端本地 `gbbq` 文件的记录**格式完全一致**（同 29B 布局），实测 001225 / 001285 /
 001309 / 600519 四只与本地 gbbq 逐条一致（2026-11-13）。
@@ -27,17 +27,6 @@ CATEGORY_NAMES = {
     6: '增发新股', 7: '股份回购', 8: '增发新股上市', 9: '转配股上市', 10: '可转债上市',
     11: '扩缩股', 12: '非流通股缩股', 13: '送认购权证', 14: '送认沽权证',
 }
-
-
-def _get_volume(v: int) -> float:
-    """通达信自研 4 字节浮点（成交量/股本编码），来自 pytdx 的 get_volume 口径"""
-    ivol = v
-    logpoint = (ivol >> 24) & 0xFF
-    hleax = (ivol >> 16) & 0xFF
-    lheax = (ivol >> 8) & 0xFF
-    lleax = ivol & 0xFF
-    d1 = hleax + lheax / 256.0 + lleax / 65536.0
-    return d1 * pow(2, logpoint - 127) * 100.0
 
 
 def build_xdxr_req(market: int, code: str, msg_id: int = 0) -> bytes:
@@ -76,18 +65,21 @@ def parse_xdxr(body: bytes) -> list:
             'peigu': 0.0,          # 配股（每10股）
             'shares': None,        # 股本类类别才有：前流通/前总/后流通/后总（万股）
         }
+        # ⚠️ 4 个字段一律 float32（2026-11-13 实测更正）：与 gbbq 文件同一编码；
+        #    早期版本误按「uint32 + 自研 volume 解码」处理非除权除息类 → 股本恒为 0.0（0.2.6~0.2.9 的 bug）。
+        #    实测对照：301233 20261112 cat=5 → (3937.61, 7176.68, 3937.61, 7231.82) 万股，
+        #    与同股实时 finance 流通A股（39,376,101 股 = 3937.61 万股）一致。
+        f1, f2, f3, f4 = struct.unpack_from('<ffff', bs, 13)
         if cat == 1:
-            fh, pgj, szg, pg = struct.unpack_from('<ffff', bs, 13)
-            rec.update(fenhong=round(fh, 6), peigujia=round(pgj, 6),
-                       songzhuangu=round(szg, 6), peigu=round(pg, 6))
+            rec.update(fenhong=round(f1, 6), peigujia=round(f2, 6),
+                       songzhuangu=round(f3, 6), peigu=round(f4, 6))
         elif cat in (11, 12):
-            rec['songzhuangu'] = round(struct.unpack_from('<f', bs, 21)[0], 6)  # 缩股比例
+            rec['songzhuangu'] = round(f3, 6)      # 缩股比例
         elif cat in (13, 14):
-            rec['peigujia'] = round(struct.unpack_from('<f', bs, 13)[0], 6)     # 行权价
-            rec['peigu'] = round(struct.unpack_from('<f', bs, 21)[0], 6)        # 份数
+            rec['peigujia'] = round(f1, 6)         # 行权价
+            rec['peigu'] = round(f3, 6)            # 份数
         else:
-            v = [struct.unpack_from('<I', bs, 13 + 4 * i)[0] for i in range(4)]
-            rec['shares'] = tuple(round(_get_volume(x) * 1e4, 2) for x in v)
+            rec['shares'] = (round(f1, 6), round(f2, 6), round(f3, 6), round(f4, 6))
         out.append(rec)
         bs = bs[29:]
     return out
