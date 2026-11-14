@@ -9,6 +9,13 @@ SN_PREFIX = bytes.fromhex("0c090041030027002700d10f")
 SN_SUFFIX = bytes.fromhex("0000000000000000000000000000000001001400000000010000000000")
 
 from .commands.finance import build_finance_req, parse_finance  # 财务(0c1f) 复用既有解析器
+from .client import market_of
+
+
+def _market_for(code: str) -> int:
+    """统一市场判定：委托 client.market_of（含 880xxx 板块指数=沪市），消除多处内联前缀重复。"""
+    return market_of(code)
+
 
 def load_servers():
     p = os.path.join(os.path.dirname(__file__), 'servers.txt')
@@ -93,7 +100,7 @@ def worker(host, codes, results, idx):
         return
     mine = []
     for code in codes:
-        m = 1 if code.startswith(('5', '6', '9')) else 0  # 5=沪基金 6=沪A 9=沪B
+        m = _market_for(code)
         try:
             r = c.snap(code, m)
             mine.append((code, r.get('last'), r['ok']))
@@ -116,7 +123,7 @@ def worker_finance(host, codes, results, idx):
         return
     mine = []
     for code in codes:
-        m = 1 if code.startswith(('5', '6', '9')) else 0
+        m = _market_for(code)
         try:
             r = c.finance(code, m)
             # 空壳行的 code 字段是空的（解析自响应内容），补回请求的代码供调用方对号
@@ -148,7 +155,7 @@ class Pool:
     def snap(self, code: str, market: int = None) -> dict:
         """单只快照（走第一台服务器；失败自动换下一台）"""
         if market is None:
-            market = 1 if code.startswith(('5', '6', '9')) else 0
+            market = _market_for(code)
         for host in self.servers[:3]:
             try:
                 c = Conn(host)
@@ -181,7 +188,7 @@ class Pool:
     def finance(self, code: str, market: int = None) -> dict:
         """单只财务（走第一台服务器；失败自动换下一台）"""
         if market is None:
-            market = 1 if code.startswith(('5', '6', '9')) else 0
+            market = _market_for(code)
         for host in self.servers[:3]:
             try:
                 c = Conn(host)
