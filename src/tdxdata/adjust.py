@@ -25,8 +25,6 @@
 算法口径参考 injoyai/tdx（MIT, protocol/model_gbbq.go，其结论为「与桌面端逐分对齐」），
 本实现独立重写 + 单测断言（见 tests/test_adjust.py）。
 """
-import math
-
 __all__ = ['affine_coeffs', 'round_half_up', 'factors', 'adjust_prices', 'adjust_bars']
 
 
@@ -117,7 +115,7 @@ def adjust_prices(prices, dates, events, mode='qfq', ndigits=2) -> list:
         return list(prices)
     fs = factors(events, dates)
     out = []
-    for p, f in zip(prices, fs):
+    for p, f in zip(prices, fs, strict=True):
         if p is None:
             out.append(None)
             continue
@@ -137,7 +135,7 @@ def adjust_bars(bars, events, mode='qfq', price_keys=('open', 'close', 'high', '
     dates = [_as_int_date(bar.get('datetime') or bar.get('date')) for bar in bars]
     fs = factors(events, dates)
     out = []
-    for bar, f in zip(bars, fs):
+    for bar, f in zip(bars, fs, strict=True):
         nb = dict(bar)
         if mode == 'qfq':
             mul, add = f['qfq_mul'], f['qfq_add']

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tdxdata"
-version = "0.2.8"
+version = "0.2.9"
 description = "TDX (通达信) 2026-09 新版行情协议客户端 — realtime A-share quotes"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -30,6 +30,18 @@ Changelog = "https://github.com/ShanNing-YU/a-share-tdxdata/blob/main/CHANGELOG.
 [project.scripts]
 tdxdata-probe = "tdxdata.cli:main"
 tdxdata-qx = "tdxdata.cli_qx:main"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+# lint 基线 = 「真问题」类：
+#   F   未定义名/未用导入与变量/语法
+#   E9  语法错误
+#   B   bugbear（可疑用法，如 zip 长度不匹配、except 里 raise 丢失上下文）
+# 风格类（UTF-8 声明、import 排序、盲 except 容错等）按项目既有约定不强制启用。
+select = ["F", "E9", "B"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

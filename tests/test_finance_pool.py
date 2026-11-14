@@ -22,7 +22,7 @@ CASES = ['000001', '600519', '300750']
 def test_finance_all_basic():
     rows = Pool(n_conn=3).finance_all(CASES)
     assert len(rows) == len(CASES), f'返回长度应为 {len(CASES)}，实际 {len(rows)}'
-    for code, r in zip(CASES, rows):
+    for code, r in zip(CASES, rows, strict=False):
         assert r.get('ok') is True, f'{code} 取数失败: {r}'
         assert r.get('code') == code, f'顺序/代码错位: 期望 {code} 实际 {r.get("code")}'
         assert len(r) == 40, f'{code} 字段数应为 40，实际 {len(r)}'

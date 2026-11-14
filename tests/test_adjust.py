@@ -117,7 +117,7 @@ def test_input_validation():
 
 
 if __name__ == '__main__':
-    for name, fn in sorted(list(globals().items())):
+    for name, fn in sorted(globals().items()):
         if name.startswith('test_'):
             fn()
     print('test_adjust: 全部通过 ✅')

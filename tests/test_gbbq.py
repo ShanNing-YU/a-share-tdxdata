@@ -68,8 +68,9 @@ def test_bad_input_raises_valueerror():
             decrypt_records(bad)
         except ValueError as e:
             assert 'gbbq' in str(e)
-        except Exception as e:                     # noqa: BLE001
-            raise AssertionError(f'{len(bad)} 字节输入应抛 ValueError，实际 {type(e).__name__}: {e}')
+        except Exception as e:
+            raise AssertionError(
+                f'{len(bad)} 字节输入应抛 ValueError，实际 {type(e).__name__}: {e}') from e
         else:
             raise AssertionError(f'{len(bad)} 字节输入应抛 ValueError')
 
@@ -96,10 +97,54 @@ def test_truncated_and_cache(tmp=None):
         assert len(r4) == len(r1), f'缓存损坏后应回退，得到 {len(r4)}'
 
 
+def test_extract_members_errors():
+    """官方包缺 gbbq / 不是 zip → 可读的 ValueError（不是裸 KeyError/BadZipFile）"""
+    import io
+    import zipfile
+    from tdxdata.gbbq import _extract_members
+    try:
+        _extract_members(b'not a zip')
+        raise AssertionError('非 zip 应抛 ValueError')
+    except ValueError as e:
+        assert 'zip' in str(e)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w') as z:
+        z.writestr('other.txt', b'x')
+    try:
+        _extract_members(buf.getvalue())
+        raise AssertionError('缺 gbbq 应抛 ValueError')
+    except ValueError as e:
+        assert 'gbbq' in str(e)
+
+
+def test_cache_pruning():
+    """缓存按来源只留最近 3 份（权息表每版约 5MB，不清理会持续累积）"""
+    import struct
+    import tempfile
+    from pathlib import Path
+    from tdxdata.gbbq import read_gbbq
+    with tempfile.TemporaryDirectory() as td:
+        for n in range(5):                                     # 造 5 个「不同版本」
+            f = Path(td) / f'v{n}'
+            f.write_bytes(struct.pack('<I', n + 1) + b'\x00' * ((n + 1) * 29))
+            read_gbbq(f, cache_dir=Path(td) / 'cache')          # case 的 tag=n 文件名 → 每版一个 tag
+        caches = list((Path(td) / 'cache').glob('gbbq_*.bin'))
+        assert len(caches) <= 5, len(caches)                   # 不同 tag 各自保留即可
+        # 同一 tag 连写 5 版 → 只留 3
+        for k in range(5):
+            f2 = Path(td) / 'same'
+            f2.write_bytes(struct.pack('<I', k + 1) + b'\x00' * ((k + 1) * 29))
+            read_gbbq(f2, cache_dir=Path(td) / 'cache2')
+        same = list((Path(td) / 'cache2').glob('gbbq_same_*.bin'))
+        assert len(same) <= 3, f'同源缓存应只留 3 份，实际 {len(same)}'
+
+
 if __name__ == '__main__':
     test_url_and_size()
     test_decrypt_record_fixtures()
     test_selection_helpers()
     test_bad_input_raises_valueerror()
     test_truncated_and_cache()
+    test_extract_members_errors()
+    test_cache_pruning()
     print('test_gbbq: 全部通过 ✅')

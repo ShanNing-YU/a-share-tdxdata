@@ -75,7 +75,7 @@ def main():
                     'is_delisted': c in delisted, 'alive': c in alive,
                     'keep': (classify(c) == '股票') and (c not in delisted) and (c in alive)})
     print(f'   输入 {len(codes)} 只｜退市名单 {len(delisted)}｜存活 {len(alive)}')
-    print(f'   分类: ' + ', '.join(f'{k}={sum(1 for r in out if r["kind"]==k)}'
+    print('   分类: ' + ', '.join(f'{k}={sum(1 for r in out if r["kind"]==k)}'
                                 for k in ('股票', 'ETF/LOF', '可转债', '其他')))
     print(f'   ✅ 清洗后可用股票池: {sum(1 for r in out if r["keep"])} 只')
 

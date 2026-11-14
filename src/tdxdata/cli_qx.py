@@ -16,7 +16,7 @@ import json
 import sys
 
 from .adjust import factors, round_half_up
-from .client import TdxClient, market_of
+from .client import TdxClient
 
 
 def _print_events(events, code):
@@ -47,17 +47,13 @@ def cmd_xdxr(a):
 
 
 def cmd_gbbq(a):
-    from .gbbq import download_gbbq, events_of, read_gbbq
+    from .gbbq import decrypt_records, download_gbbq, events_of, read_gbbq
     if a.path:
         recs = read_gbbq(a.path, cache_dir=a.cache_dir)
         src = a.path
     else:
-        data = download_gbbq(dest=a.out)['gbbq']
-        import tempfile
-        from pathlib import Path
-        tmp = Path(tempfile.mkdtemp()) / 'gbbq'
-        tmp.write_bytes(data)
-        recs = read_gbbq(tmp, cache_dir=a.cache_dir)
+        data = download_gbbq(dest=a.out, url=a.url)['gbbq']
+        recs = decrypt_records(data)
         src = f'{a.url}（{len(data):,d} B）'
     ev = [r for r in recs if r['category'] == 1]
     print(f'来源: {src}')
@@ -86,7 +82,7 @@ def cmd_adjust(a):
     print(f'{a.code} 近 {len(bars)} 根日线（复权=仿射口径，成交量不复权）'
           f'｜可用事件 {len(ev)} 条')
     print('  日期        原始收盘   前复权    后复权   QFQ(A,B)                 HFQ(A,B)')
-    for b, f in zip(bars, fs):
+    for b, f in zip(bars, fs, strict=True):
         raw = b['close']
         q = round_half_up(f['qfq_mul'] * raw + f['qfq_add'])
         h = round_half_up(f['hfq_mul'] * raw + f['hfq_add'])
@@ -129,7 +125,13 @@ def main(argv=None):
     if getattr(a, 'url', None) is None and hasattr(a, 'url'):
         from .gbbq import GBBQ_URL
         a.url = GBBQ_URL
-    return a.func(a)
+    try:
+        return a.func(a)
+    except (OSError, ValueError) as e:
+        # 网络不通 / 数据源改版 / 参数问题 → 一行可读错误（原来是裸 traceback，像崩了）。
+        # 其他异常照旧抛出（真 bug 要看得见）。
+        print(f'错误: {type(e).__name__}: {e}', file=sys.stderr)
+        return 2
 
 
 if __name__ == '__main__':

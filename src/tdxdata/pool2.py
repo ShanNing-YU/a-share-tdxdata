@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """并发池: 43 IP 并发，每连接顺序拉 N 只（3s/只），全市场快照 ~12-15 分钟"""
-import socket, time, struct, os, threading, random, sys
+import socket, time, struct, os, threading, random
 
 PORT = 7709
 C02 = bytes.fromhex("0c0218940001030003000d0001")
@@ -97,7 +97,7 @@ def worker(host, codes, results, idx):
         try:
             r = c.snap(code, m)
             mine.append((code, r.get('last'), r['ok']))
-        except Exception as e:
+        except Exception:
             mine.append((code, None, False))
     results[idx] = mine
     c.close()

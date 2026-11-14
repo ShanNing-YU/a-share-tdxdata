@@ -89,7 +89,6 @@ class TdxClient:
 
     # ---- 分时快照 ----
     def snap(self, code: str, market: int = None):
-        import struct
         m = market if market is not None else market_of(code)
         req = SNAP_PREFIX + bytes([m, 0]) + code.encode() + SNAP_SUFFIX
         r = self._req(req)

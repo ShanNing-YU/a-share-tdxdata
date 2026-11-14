@@ -21,7 +21,6 @@
 import hashlib
 import io
 import struct
-import time
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -95,6 +94,19 @@ def decrypt_records(raw: bytes) -> list:
 
 # ---------------------------------------------------------------- 获取
 
+def _extract_members(blob: bytes, members=('gbbq', 'gbbq.map')) -> dict:
+    """从官方 zip 里解出指定成员；缺 gbbq 时抛可读的 ValueError（不是裸 KeyError）"""
+    try:
+        with zipfile.ZipFile(io.BytesIO(blob)) as z:
+            names = set(z.namelist())
+            out = {m: z.read(m) for m in members if m in names}
+    except zipfile.BadZipFile as e:
+        raise ValueError(f'官方数据包不是有效 zip：{e}') from e
+    if 'gbbq' not in out:
+        raise ValueError(f'官方数据包内没有 gbbq（包内文件：{sorted(names)[:8]}）—— 数据源可能已改版')
+    return out
+
+
 def download_gbbq(dest=None, url=GBBQ_URL, timeout=90, members=('gbbq', 'gbbq.map')):
     """下载 gbbq.zip 并解出指定成员 → {成员名: bytes}；`dest` 传目录时同时落盘
 
@@ -103,12 +115,7 @@ def download_gbbq(dest=None, url=GBBQ_URL, timeout=90, members=('gbbq', 'gbbq.ma
     req = urllib.request.Request(url, headers={'User-Agent': 'tdxdata/0.2.6'})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         blob = r.read()
-    out = {}
-    with zipfile.ZipFile(io.BytesIO(blob)) as z:
-        names = set(z.namelist())
-        for m in members:
-            if m in names:
-                out[m] = z.read(m)
+    out = _extract_members(blob, members)
     if dest is not None:
         d = Path(dest)
         d.mkdir(parents=True, exist_ok=True)
@@ -143,6 +150,7 @@ def read_gbbq(path=None, url=GBBQ_URL, cache_dir=None, use_cache=True, verbose=F
         try:
             cache_dir.mkdir(parents=True, exist_ok=True)
             _save_cache(cf, recs)
+            _prune_cache(cache_dir, tag, keep=3)
         except Exception:
             pass
         return recs
@@ -206,3 +214,13 @@ def to_map(recs, category=1):
     for v in m.values():
         v.sort(key=lambda r: r['date'])
     return m
+
+
+def _prune_cache(cache_dir: Path, tag: str, keep: int = 3):
+    """同一来源只保留最近 keep 份缓存（权息表每版约 5MB，不清理会持续累积）"""
+    try:
+        files = sorted(cache_dir.glob(f'gbbq_{tag}_*.bin'), key=lambda p: p.stat().st_mtime)
+        for p in files[:-keep] if len(files) > keep else []:
+            p.unlink()
+    except Exception:
+        pass

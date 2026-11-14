@@ -49,7 +49,7 @@ def test_parse_from_fixture():
     assert abs(last['fenhong']) < 1e-9
     assert last['category_name'] == '除权除息'
     # 2026-06-08 是纯派现 3.12 元/10 股
-    d2026 = [r for r in ev if r['date'] == 20260608][0]
+    d2026 = next(r for r in ev if r['date'] == 20260608)
     assert abs(d2026['fenhong'] - 3.12) < 0.01
 
 

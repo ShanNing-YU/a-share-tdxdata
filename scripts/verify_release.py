@@ -14,6 +14,7 @@
 活服务器协议（11）。需要本机可直连通达信主站（默认 101.33.225.16）与本地权息表文件。
 """
 
+import os
 import struct
 import sys
 import tempfile
@@ -21,13 +22,14 @@ import traceback
 from pathlib import Path
 
 import tdxdata
-from tdxdata import (GBBQ_URL, TdxClient, adjust_bars, adjust_prices, affine_coeffs,
-                     decrypt_record, events_of, factors, read_gbbq, round_half_up, to_map)
-from tdxdata.commands.xdxr import build_xdxr_req, parse_xdxr, xdxr_of
+from tdxdata import (TdxClient, adjust_bars, adjust_prices, affine_coeffs, events_of,
+                     factors, read_gbbq, round_half_up, to_map)
+from tdxdata.commands.xdxr import parse_xdxr, xdxr_of
 from tdxdata.frame import TYPE_GBBQ, build_frame, split_response
 
-HOST = '101.33.225.16'
-GBBQ_FILE = '/home/yuzq/workspace/qlib-pytdx/data/gbbq_http/gbbq'
+HOST = os.environ.get('TDXDATA_TEST_HOST', '101.33.225.16')
+# 权息表：优先用环境变量指定的本地文件；没有就现场从官方数据站下载（约 20-25s）
+GBBQ_FILE = os.environ.get('TDXDATA_TEST_GBBQ') or None
 ok = fail = 0
 
 
@@ -105,7 +107,7 @@ try:
     try:
         adjust_bars([{'close': 1.0}], ev, 'qfq')
         check('bars 缺 datetime → 报错（消息可读）', False, '未报错')
-    except ValueError as e:
+    except ValueError:
         check('bars 缺 datetime → ValueError', True)
     except Exception as e:
         check('bars 缺 datetime → ValueError', False, f'{type(e).__name__}: {e}')
@@ -116,11 +118,17 @@ except Exception:
 # ---------------------------------------------------------------- gbbq 文件
 section('gbbq 读取（离线 + 损坏输入）')
 try:
-    recs = read_gbbq(GBBQ_FILE, cache_dir='/tmp/vpkg_cache')
+    gbbq_src = GBBQ_FILE
+    if gbbq_src is None:
+        from tdxdata import download_gbbq
+        import tempfile as _tf
+        _d = _tf.mkdtemp()
+        download_gbbq(dest=_d)
+        gbbq_src = f'{_d}/gbbq'
+    recs = read_gbbq(gbbq_src, cache_dir=tempfile.mkdtemp())
     check('读取整表成功', len(recs) > 200000, len(recs))
     check('事件筛选（600519）非空', len(events_of(recs, '600519')) > 20)
     check('to_map 覆盖多只', len(to_map(recs)) > 6000)
-    check('空文件 → 空结果不崩', read_gbbq.__module__ and True)
     with tempfile.TemporaryDirectory() as td:
         p = Path(td) / 'empty'
         p.write_bytes(b'')
@@ -150,7 +158,8 @@ try:
         download_gbbq(url='http://127.0.0.1:9/nope', timeout=3)
         check('坏 URL 报异常', False, '未报错')
     except Exception as e:
-        check('坏 URL 报清晰异常', True, type(e).__name__)
+        check('坏 URL 报清晰异常', type(e).__name__ in ('URLError', 'OSError', 'ValueError'),
+              f'{type(e).__name__}: {e}')
 except Exception:
     traceback.print_exc()
     fail += 1
@@ -187,7 +196,10 @@ try:
     manual = adjust_prices([b['close'] for b in bars],
                            [int(b['datetime'][:10].replace('-', '')) for b in bars], ev, 'qfq')
     check('bars_adjusted == 手工 adjust_prices', [b['close'] for b in adj] == manual)
-    check('bars_adjusted 保留成交量', adj == adj and 'vol' in adj[0])
+    raw_bars = c.bars(9, '001225', 0, 10, 0)
+    check('bars_adjusted 成交量/时间与原始一致（只有价被复权）',
+          [b['vol'] for b in adj] == [b['vol'] for b in raw_bars]
+          and [b['datetime'] for b in adj] == [b['datetime'] for b in raw_bars])
     adj_none = c.bars_adjusted('001225', count=5, adjust='none')
     check('adjust=none 与原始 bars 一致', [b['close'] for b in adj_none] ==
           [b['close'] for b in c.bars(9, '001225', 0, 5, 0)])
