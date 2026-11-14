@@ -44,6 +44,9 @@ rows = p.snap_all(['000001', '600519'])  # 并发全列表 → [(code, last, ok)
 支持深市 / 沪市 / 指数（market 自动推断，也可显式传）：
 
 ```python
+from tdxdata.pool2 import Pool
+
+p = Pool()
 p.snap('000001')                 # 平安银行（深 market=0）
 p.snap('000001', market=1)       # 上证指数（沪 market=1）
 p.snap('688981', market=1)       # 中芯国际（科创板）

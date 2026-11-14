@@ -23,7 +23,7 @@ CASES = [
 
 
 def test_url_and_size():
-    assert GBBQ_URL.startswith('http://www.tdx.com.cn/')
+    assert GBBQ_URL.startswith('https://www.tdx.com.cn/'), GBBQ_URL   # 2026-11-13 起默认 https
     assert RECORD_SIZE == 29
 
 

@@ -28,7 +28,9 @@ from pathlib import Path
 from .commands.xdxr import CATEGORY_NAMES
 from .gbbq_keys import KEYS_HEX
 
-GBBQ_URL = 'http://www.tdx.com.cn/products/data/data/dbf/gbbq.zip'
+# 默认走 https（数据会喂复权、间接影响交易决策，明文有被中间人篡改的风险；
+# 实测同路径 http:// 也可用且**内容字节完全一致**，如需可自行传 url= 覆盖）
+GBBQ_URL = 'https://www.tdx.com.cn/products/data/data/dbf/gbbq.zip'
 RECORD_SIZE = 29
 KEYS = bytes.fromhex(KEYS_HEX)
 
