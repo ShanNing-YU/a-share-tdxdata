@@ -6,7 +6,8 @@
 
 来源
 ----
-- HTTP 源：`http://www.tdx.com.cn/products/data/data/dbf/gbbq.zip`（通达信官方数据站）
+- HTTP(S) 源：`https://www.tdx.com.cn/products/data/data/dbf/gbbq.zip`（通达信官方数据站；
+  同路径 `http://` 也可用且内容字节一致，0.2.11 起默认走 https）
   包内含 `gbbq`（全市场权息表，6.0MB / 20.8 万条）、`gbbq.map`、`zhb.zip`（板块总包）、
   `infoharbor_*.txt` 等。**无需通达信客户端、无需协议身份**。
   该地址来自 jing2uo/tdx2db（其 lib/gbbq 被 injoyai/tdx 引用），本实现独立重写。

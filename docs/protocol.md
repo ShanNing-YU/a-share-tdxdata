@@ -97,7 +97,7 @@
 ### B. 整表权息表 — 官方 HTTP 数据包
 
 ```
-http://www.tdx.com.cn/products/data/data/dbf/gbbq.zip     (≈6.3 MB)
+https://www.tdx.com.cn/products/data/data/dbf/gbbq.zip    (≈6.15 MB zip / 包内 gbbq 6.03 MB)
   └─ gbbq (6,027,654 B) · gbbq.map · zhb.zip(板块总包) · infoharbor_*.txt · infoharbor_block.dat
 ```
 * `gbbq` 格式：4B 记录数(u32) + N × 29B（前 24B 加密/3DES 族查表 + 后 5B 明文）；密钥表见 `gbbq_keys.py`。
