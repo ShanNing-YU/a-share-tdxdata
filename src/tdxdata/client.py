@@ -33,8 +33,11 @@ SNAP_SUFFIX = bytes.fromhex("000000000000000000000000000000000100140000000001000
 
 def market_of(code: str) -> int:
     """0=深市 1=沪市（000001+1=上证指数）
-    ⚠️ 5 开头是沪市基金（510300 沪深300ETF/588000 科创50 等），不能按深市处理"""
-    return 1 if code.startswith(('5', '6', '9')) else 0
+
+    ⚠️ 5 开头是沪市基金（510300 沪深300ETF/588000 科创50 等），不能按深市处理
+    ⚠️ 880 开头是通达信板块指数（如 880867 上证指数），属沪市，判为 market=1
+    """
+    return 1 if code.startswith(('5', '6', '9', '880')) else 0
 
 
 def maybe_decompress(resp: bytes) -> bytes:
@@ -96,12 +99,35 @@ class TdxClient:
 
     # ---- 历史 K 线 ----
     def bars(self, category: int, code: str, start: int = 0, count: int = 100, market: int = None):
+        """历史 K 线（单请求上限 800 根）
+
+        服务器对单次 bars 请求最多返回 800 根。``count <= 800`` 走原单次请求路径，
+        行为不变；``count > 800`` 自动分页：按偏移 0/800/1600… 逐块拉取，每块做
+        同样的请求/解压/解析（短帧 <=18 字节返回空块），拼块后按 'datetime' 跨块
+        去重（保留首次出现）并升序排序，最多返回 count 根；历史不足时不抛异常，
+        有多少返回多少。
+
+        :return: list[dict]，每根含 'datetime'/'open'/'close'/'high'/'low'/'vol'/'amount'
+        """
         m = market if market is not None else market_of(code)
-        r = self._req(build_bars_req(category, m, code, start, count))
-        r = maybe_decompress(r)
-        if len(r) <= 18:
-            return []
-        return parse_bars_response(r[16:], category)
+
+        def fetch_once(off: int, n: int):
+            """按偏移 start+off 做单块请求：同样请求/解压/解析，短帧返回 []。
+
+            分页时 off 为块内偏移（0/800/1600…），需叠加调用方传入的 start，
+            否则 bars(count>800, start=1600) 会静默从最新一根重新开始。
+            """
+            r = self._req(build_bars_req(category, m, code, start + off, n))
+            r = maybe_decompress(r)
+            if len(r) <= 18:
+                return []
+            return parse_bars_response(r[16:], category)
+
+        if count <= 800:
+            return fetch_once(start, count)
+
+        from .paging import fetch_paged
+        return fetch_paged(fetch_once, count, chunk=800)
 
     # ---- 盘口报价 ----
     def quotes(self, items):
